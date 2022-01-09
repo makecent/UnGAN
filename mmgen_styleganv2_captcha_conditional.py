@@ -1,0 +1,123 @@
+custom_imports = dict(imports=['my_codes'], allow_failed_imports=False)
+
+model = dict(
+    type='StaticUnconditionalGAN',
+    generator=dict(
+        type='ConditionalStyleGANv2Generator',
+        out_size=64,
+        style_channels=8,
+        noise_channels=120,
+    ),
+    discriminator=dict(
+        # type='ConditionalStyleGAN2Discriminator',
+        # in_channels=512,
+        type='StyleGAN2Discriminator',
+        in_size=64,
+    ),
+    gan_loss=dict(type='GANLoss', gan_type='wgan-logistic-ns'))
+
+train_cfg = dict(use_ema=True)
+test_cfg = None
+
+# Style-based GANs do not perform any augmentation for the LSUN datasets
+dataset_type = 'UnconditionalImageDataset'
+
+train_pipeline = [
+    dict(
+        type='LoadImageFromFile',
+        key='real_img',
+        io_backend='disk',
+    ),
+    dict(type='Resize', keys=['real_img'], scale=(64, 64), keep_ratio=False),
+    dict(
+        type='Normalize',
+        keys=['real_img'],
+        mean=[127.5] * 3,
+        std=[127.5] * 3,
+        to_rgb=False),
+    dict(type='ImageToTensor', keys=['real_img']),
+    dict(type='Collect', keys=['real_img'], meta_keys=['real_img_path'])
+]
+
+val_pipeline = [
+    dict(
+        type='LoadImageFromFile',
+        key='real_img',
+        io_backend='disk',
+    ),
+    dict(type='Resize', keys=['real_img'], scale=(64, 64), keep_ratio=False),
+    dict(
+        type='Normalize',
+        keys=['real_img'],
+        mean=[127.5] * 3,
+        std=[127.5] * 3,
+        to_rgb=True),
+    dict(type='ImageToTensor', keys=['real_img']),
+    dict(type='Collect', keys=['real_img'], meta_keys=['real_img_path'])
+]
+
+data = dict(
+    samples_per_gpu=4,
+    workers_per_gpu=4,
+    train=dict(
+        type='RepeatDataset',
+        times=100,
+        dataset=dict(
+            type=dataset_type, imgs_root='./captcha_data', pipeline=train_pipeline)),
+    val=dict(type=dataset_type, imgs_root='./captcha_data', pipeline=val_pipeline))
+
+
+ema_half_life = 10.
+custom_hooks = [
+    dict(
+        type='VisualizeConditionalSamples',
+        output_dir='training_samples',
+        interval=500),
+    dict(
+        type='ExponentialMovingAverageHook',
+        module_keys=('generator_ema', ),
+        interval=1,
+        interp_cfg=dict(momentum=0.5**(32. / (ema_half_life * 1000.))),
+        priority='VERY_HIGH')
+]
+
+# define optimizer
+optimizer = dict(
+    generator=dict(
+        type='Adam', lr=0.002, betas=(0, 0.99)),
+    discriminator=dict(
+        type='Adam', lr=0.002, betas=(0, 0.99)))
+
+lr_config = None
+total_iters = 800002  # need to modify
+
+metrics = dict(
+    fid50k=dict(
+        type='FID', num_images=50000, inception_pkl=None, bgr2rgb=True),
+    pr50k3=dict(type='PR', num_images=50000, k=3),
+    ppl_wend=dict(type='PPL', space='W', sampling='end', num_images=50000))
+
+# yapf:disable
+log_config = dict(
+    interval=100,
+    hooks=[
+        dict(type='TextLoggerHook'),
+        dict(type='TensorboardLoggerHook'),
+    ])
+# yapf:enable
+checkpoint_config = dict(interval=10000, by_epoch=False, max_keep_ckpts=30)
+# use dynamic runner
+runner = dict(
+    type='DynamicIterBasedRunner',
+    is_dynamic_ddp=True,
+    pass_training_status=True)
+
+dist_params = dict(backend='nccl')
+log_level = 'INFO'
+load_from = None
+resume_from = None
+workflow = [('train', 10000)]
+find_unused_parameters = True
+cudnn_benchmark = True
+
+
