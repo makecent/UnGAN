@@ -9,15 +9,16 @@ d_reg_ratio = d_reg_interval / (d_reg_interval + 1)
 model = dict(
     type='StaticUnconditionalGAN',
     generator=dict(
+        num_mlps=2,
         type='ConditionalStyleGANv2Generator',
-        out_size=64,
-        style_channels=512,
+        out_size=32,
+        style_channels=256,
     ),
     discriminator=dict(
         # type='ConditionalStyleGAN2Discriminator',
         # in_channels=512,
         type='StyleGAN2Discriminator',
-        in_size=64,
+        in_size=32,
     ),
     gan_loss=dict(type='GANLoss', gan_type='wgan-logistic-ns'),
     disc_auxiliary_loss=dict(
@@ -46,7 +47,7 @@ train_pipeline = [
         key='real_img',
         io_backend='disk',
     ),
-    dict(type='Resize', keys=['real_img'], scale=(64, 64), keep_ratio=False),
+    dict(type='Resize', keys=['real_img'], scale=(32, 32), keep_ratio=False),
     dict(
         type='Normalize',
         keys=['real_img'],
@@ -63,7 +64,7 @@ val_pipeline = [
         key='real_img',
         io_backend='disk',
     ),
-    dict(type='Resize', keys=['real_img'], scale=(64, 64), keep_ratio=False),
+    dict(type='Resize', keys=['real_img'], scale=(32, 32), keep_ratio=False),
     dict(
         type='Normalize',
         keys=['real_img'],
@@ -75,14 +76,14 @@ val_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=16,
     workers_per_gpu=4,
     train=dict(
         type='RepeatDataset',
         times=100,
         dataset=dict(
-            type=dataset_type, imgs_root='./mnist_test', pipeline=train_pipeline)),
-    val=dict(type=dataset_type, imgs_root='./mnist_test', pipeline=val_pipeline))
+            type=dataset_type, imgs_root='./datasets/mnist_train', pipeline=train_pipeline)),
+    val=dict(type=dataset_type, imgs_root='./datasets/mnist_train', pipeline=val_pipeline))
 
 
 ema_half_life = 10.
