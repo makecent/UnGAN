@@ -9,9 +9,10 @@ d_reg_ratio = d_reg_interval / (d_reg_interval + 1)
 model = dict(
     type='StaticUnconditionalGAN',
     generator=dict(
+        num_mlps=2,
         type='ConditionalStyleGANv2Generator',
         out_size=32,
-        style_channels=512,
+        style_channels=256,
     ),
     discriminator=dict(
         # type='ConditionalStyleGAN2Discriminator',
@@ -75,7 +76,7 @@ val_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=16,
     workers_per_gpu=4,
     train=dict(
         type='RepeatDataset',
